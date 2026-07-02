@@ -65,6 +65,19 @@
 
     <div id="alertBox"></div>
 
+    <!-- Success Box (Registration সফল হলে এটা দেখাবে, ফর্ম hide হয়ে যাবে) -->
+    <div id="successBox" style="display:none; text-align:center; padding: 20px 0;">
+        <div style="font-size: 40px; margin-bottom: 10px;">✅</div>
+        <h3 style="color: #065f46; margin-bottom: 8px;">Registration Successful!</h3>
+        <p style="color: #555; font-size: 14px; margin-bottom: 20px;">
+            তোমার অ্যাকাউন্ট তৈরি হয়ে গেছে। Dashboard এ ঢুকতে হলে আগে Login করতে হবে।
+        </p>
+        <a href="{{ route('login.form') }}"
+           style="display:inline-block; background:#2563eb; color:#fff; padding: 12px 24px; border-radius: 5px; text-decoration:none; font-size: 14px; font-weight: bold;">
+           Go to Login
+        </a>
+    </div>
+
     <form id="registerForm" novalidate>
         <div class="form-group">
             <label>Username</label>
@@ -83,8 +96,6 @@
             <input type="text" name="company_code" id="company_code" placeholder="e.g. COMP001">
             <span class="error-text" id="err_company_code"></span>
         </div>
-
-        
 
         <div class="form-group">
             <label>Email</label>
@@ -132,6 +143,7 @@ const API_BASE = "{{ url('/api') }}"; // e.g. http://127.0.0.1:8000/api
 const form = document.getElementById('registerForm');
 const submitBtn = document.getElementById('submitBtn');
 const alertBox = document.getElementById('alertBox');
+const successBox = document.getElementById('successBox');
 
 // ---------- Load Captcha ----------
 async function loadCaptcha() {
@@ -196,12 +208,20 @@ form.addEventListener('submit', async function (e) {
         const result = await res.json();
 
         if (res.status === 201) {
-            showAlert('Registration successful! Token generated.', 'success');
+            // ---- Registration সফল হলে ----
+            // URL পরিবর্তন হবে না, শুধু ফর্ম hide করে success box দেখানো হবে
+
+            form.style.display = 'none';      // ফর্ম hide
+            alertBox.style.display = 'none';  // কোনো পুরনো error alert থাকলে hide
+
+            successBox.style.display = 'block'; // success box দেখাও (এখানেই Login পেজের লিংক আছে)
+
+            // Access token টা console এ log করে রাখা হলো, শুধু ডেভেলপমেন্ট/ডিবাগিং এর জন্য
             console.log('Access Token:', result.data.access_token);
-            form.reset();
-            loadCaptcha();
+
         } else if (res.status === 422) {
-            // Validation errors — Laravel returns { message, errors: { field: [msgs] } }
+            // ---- Validation Error ----
+            // Laravel রিটার্ন করে: { message, errors: { field: [msg1, msg2, ...] } }
             const errors = result.errors || {};
             Object.keys(errors).forEach(field => {
                 const errEl = document.getElementById('err_' + field);
@@ -210,8 +230,10 @@ form.addEventListener('submit', async function (e) {
                 if (inputEl) inputEl.classList.add('error');
             });
             showAlert('Please fix the errors below.', 'error');
-            loadCaptcha(); // captcha already consumed/invalidated on failed attempt too, refresh it
+            loadCaptcha(); // ভুল হলে captcha reset করা হচ্ছে, পুরনোটা invalid ধরা হচ্ছে
+
         } else {
+            // ---- অন্য যেকোনো Error (500, ইত্যাদি) ----
             showAlert(result.message || 'Something went wrong.', 'error');
             loadCaptcha();
         }
